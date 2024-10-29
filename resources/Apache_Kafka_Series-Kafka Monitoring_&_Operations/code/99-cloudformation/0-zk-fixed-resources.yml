@@ -1,0 +1,157 @@
+Description: ZooKeeper Resources, Kafka Operations and Monitoring Course - (c) Stephane
+  Maarek, DataCumulus.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Zookeeper 1
+        Parameters:
+          - Zookeeper1AZ
+          - Zookeeper1SubnetParam
+          - Zookeeper1IPParam
+Outputs:
+  Zookeeper1AZ:
+    Description: Zookeeper 1 AZ
+    Export:
+      Name: Zookeeper1AZ
+    Value:
+      Ref: Zookeeper1AZ
+  Zookeeper1EBS:
+    Description: Zookeeper 1 EBS Volume
+    Export:
+      Name: Zookeeper1EBS
+    Value:
+      Ref: Zookeeper1EBSVolume
+  Zookeeper1ENI:
+    Description: Zookeeper 1 ENI Ref
+    Export:
+      Name: Zookeeper1ENI
+    Value:
+      Ref: Zookeeper1IPResource
+  Zookeeper1IPOutput:
+    Description: Zookeeper IP
+    Export:
+      Name: Zookeeper1IP
+    Value:
+      Ref: Zookeeper1IPParam
+Parameters:
+  Zookeeper1AZ:
+    Description: Availability Zone of the Subnet
+    Type: AWS::EC2::AvailabilityZone::Name
+  Zookeeper1IPParam:
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})
+    ConstraintDescription: must be a valid IP range of the form x.x.x.x
+    Default: 172.31.9.21
+    Description: IP Address of the user running the template
+    Type: String
+  Zookeeper1SubnetParam:
+    Description: Subnet where Zookeeper 1 should run
+    Type: AWS::EC2::Subnet::Id
+Resources:
+  Zookeeper1EBSVolume:
+    Properties:
+      AvailabilityZone:
+        Ref: Zookeeper1AZ
+      Size: 8
+      VolumeType: gp2
+    Type: AWS::EC2::Volume
+  Zookeeper1IPResource:
+    Properties:
+      Description: Zookeeper1-IP
+      GroupSet:
+        - Fn::GetAtt:
+            - ZookeeperSecurityGroup
+            - GroupId
+      PrivateIpAddress:
+        Ref: Zookeeper1IPParam
+      SubnetId:
+        Ref: Zookeeper1SubnetParam
+    Type: AWS::EC2::NetworkInterface
+  ZookeeperSecurityGroup:
+    Properties:
+      GroupDescription: Zookeeper Security Group
+    Type: AWS::EC2::SecurityGroup
+  ZookeeperSecurityGroupPort2181:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      Description: Zookeeper External Port
+      FromPort: 2181
+      GroupId:
+        Fn::GetAtt:
+          - ZookeeperSecurityGroup
+          - GroupId
+      IpProtocol: tcp
+      ToPort: 2181
+    Type: AWS::EC2::SecurityGroupIngress
+  ZookeeperSecurityGroupPort22:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      Description: Zookeeper External Port
+      FromPort: 22
+      GroupId:
+        Fn::GetAtt:
+          - ZookeeperSecurityGroup
+          - GroupId
+      IpProtocol: tcp
+      ToPort: 22
+    Type: AWS::EC2::SecurityGroupIngress
+  ZookeeperSecurityGroupPort2888:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      Description: Zookeeper Internal Port
+      FromPort: 2888
+      GroupId:
+        Fn::GetAtt:
+          - ZookeeperSecurityGroup
+          - GroupId
+      IpProtocol: tcp
+      ToPort: 2888
+    Type: AWS::EC2::SecurityGroupIngress
+  ZookeeperSecurityGroupPort3888:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      Description: Zookeeper Internal Port
+      FromPort: 3888
+      GroupId:
+        Fn::GetAtt:
+          - ZookeeperSecurityGroup
+          - GroupId
+      IpProtocol: tcp
+      ToPort: 3888
+    Type: AWS::EC2::SecurityGroupIngress
+  ZookeeperSecurityGroupPort8080:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      Description: JMX Exporter
+      FromPort: 8080
+      GroupId:
+        Fn::GetAtt:
+          - ZookeeperSecurityGroup
+          - GroupId
+      IpProtocol: tcp
+      ToPort: 8080
+    Type: AWS::EC2::SecurityGroupIngress
+  ZookeeperSecurityGroupPort8778:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      Description: Jolokia Port
+      FromPort: 8778
+      GroupId:
+        Fn::GetAtt:
+          - ZookeeperSecurityGroup
+          - GroupId
+      IpProtocol: tcp
+      ToPort: 8778
+    Type: AWS::EC2::SecurityGroupIngress
+  ZookeeperSecurityGroupPort9999:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      Description: JMX Port
+      FromPort: 9999
+      GroupId:
+        Fn::GetAtt:
+          - ZookeeperSecurityGroup
+          - GroupId
+      IpProtocol: tcp
+      ToPort: 9999
+    Type: AWS::EC2::SecurityGroupIngress

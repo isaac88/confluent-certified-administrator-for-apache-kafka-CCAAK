@@ -1,0 +1,12 @@
+# /etc/systemd/system/prometheus.service
+[Unit]
+Description=Prometheus Server
+Documentation=https://prometheus.io/docs/introduction/overview/
+After=network-online.target
+
+[Service]
+User=ec2-user
+ExecStart=/home/ec2-user/prometheus/prometheus --config.file=/home/ec2-user/prometheus/prometheus.yml --storage.tsdb.path=/home/ec2-user/prometheus/data
+
+[Install]
+WantedBy=multi-user.target

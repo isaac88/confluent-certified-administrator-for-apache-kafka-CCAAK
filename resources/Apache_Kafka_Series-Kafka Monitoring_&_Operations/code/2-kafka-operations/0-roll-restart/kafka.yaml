@@ -1,0 +1,13 @@
+# /etc/kafka_discovery/kafka.yaml
+---
+  clusters:
+    cluster-1:
+      broker_list:
+        - "not-needed-for-rolling-restart:9092"
+      zookeeper: "172.31.9.21:2181"  # change to your zookeeper IP
+    # cluster-2:
+    #   broker_list:
+    #     - "cluster-elb-2:9092"
+    #   zookeeper: "11.11.11.211:2181,11.11.11.212:2181,11.11.11.213:2181/kafka-2"
+  local_config:
+    cluster: cluster-1

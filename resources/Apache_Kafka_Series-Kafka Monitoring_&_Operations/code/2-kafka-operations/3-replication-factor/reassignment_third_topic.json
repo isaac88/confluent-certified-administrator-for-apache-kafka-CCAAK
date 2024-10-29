@@ -1,0 +1,16 @@
+{
+    "version": 1,
+    "partitions": [{
+        "topic": "third_topic",
+        "partition": 2,
+        "replicas": [2,3]
+    }, {
+        "topic": "third_topic",
+        "partition": 1,
+        "replicas": [1,2]
+    }, {
+        "topic": "third_topic",
+        "partition": 0,
+        "replicas": [3,1]
+    }]
+}

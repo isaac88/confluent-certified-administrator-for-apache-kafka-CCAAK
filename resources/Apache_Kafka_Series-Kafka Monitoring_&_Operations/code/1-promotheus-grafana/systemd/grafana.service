@@ -1,0 +1,12 @@
+# /etc/systemd/system/grafana.service
+[Unit]
+Description=Grafana Server
+After=network-online.target
+
+[Service]
+User=ec2-user
+WorkingDirectory=/home/ec2-user/grafana
+ExecStart=/home/ec2-user/grafana/bin/grafana-server
+
+[Install]
+WantedBy=multi-user.target

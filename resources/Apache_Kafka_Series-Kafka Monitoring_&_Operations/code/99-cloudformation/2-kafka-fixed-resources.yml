@@ -1,0 +1,385 @@
+Conditions:
+  Kafka1Condition:
+    Fn::Equals:
+      - Ref: Kafka1Create
+      - 'True'
+  Kafka2Condition:
+    Fn::Equals:
+      - Ref: Kafka2Create
+      - 'True'
+  Kafka3Condition:
+    Fn::Equals:
+      - Ref: Kafka3Create
+      - 'True'
+  Kafka4Condition:
+    Fn::Equals:
+      - Ref: Kafka4Create
+      - 'True'
+Description: Kafka Resources - Kafka Operations and Monitoring Course - (c) Stephane
+  Maarek, DataCumulus.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Kafka 1
+        Parameters:
+          - Kafka1Create
+          - Kafka1AZ
+          - Kafka1SubnetParam
+          - Kafka1IPParam
+      - Label:
+          default: Kafka 2
+        Parameters:
+          - Kafka2Create
+          - Kafka2AZ
+          - Kafka2SubnetParam
+          - Kafka2IPParam
+      - Label:
+          default: Kafka 3
+        Parameters:
+          - Kafka3Create
+          - Kafka3AZ
+          - Kafka3SubnetParam
+          - Kafka3IPParam
+      - Label:
+          default: Kafka 4
+        Parameters:
+          - Kafka4Create
+          - Kafka4AZ
+          - Kafka4SubnetParam
+          - Kafka4IPParam
+Outputs:
+  Kafka1AZ:
+    Condition: Kafka1Condition
+    Description: Kafka 1 AZ
+    Export:
+      Name: Kafka1AZ
+    Value:
+      Ref: Kafka1AZ
+  Kafka1EBS:
+    Condition: Kafka1Condition
+    Description: Kafka 1 EBS Volume
+    Export:
+      Name: Kafka1EBS
+    Value:
+      Ref: Kafka1EBSVolume
+  Kafka1ENI:
+    Condition: Kafka1Condition
+    Description: Kafka 1 ENI Ref
+    Export:
+      Name: Kafka1ENI
+    Value:
+      Ref: Kafka1IPResource
+  Kafka1IPOutput:
+    Condition: Kafka1Condition
+    Description: Kafka 1 IP
+    Export:
+      Name: Kafka1IP
+    Value:
+      Ref: Kafka1IPParam
+  Kafka2AZ:
+    Condition: Kafka2Condition
+    Description: Kafka 2 AZ
+    Export:
+      Name: Kafka2AZ
+    Value:
+      Ref: Kafka2AZ
+  Kafka2EBS:
+    Condition: Kafka2Condition
+    Description: Kafka 2 EBS Volume
+    Export:
+      Name: Kafka2EBS
+    Value:
+      Ref: Kafka2EBSVolume
+  Kafka2ENI:
+    Condition: Kafka2Condition
+    Description: Kafka 2 ENI Ref
+    Export:
+      Name: Kafka2ENI
+    Value:
+      Ref: Kafka2IPResource
+  Kafka2IPOutput:
+    Condition: Kafka2Condition
+    Description: Kafka 2 IP
+    Export:
+      Name: Kafka2IP
+    Value:
+      Ref: Kafka2IPParam
+  Kafka3AZ:
+    Condition: Kafka3Condition
+    Description: Kafka 3 AZ
+    Export:
+      Name: Kafka3AZ
+    Value:
+      Ref: Kafka3AZ
+  Kafka3EBS:
+    Condition: Kafka3Condition
+    Description: Kafka 3 EBS Volume
+    Export:
+      Name: Kafka3EBS
+    Value:
+      Ref: Kafka3EBSVolume
+  Kafka3ENI:
+    Condition: Kafka3Condition
+    Description: Kafka 3 ENI Ref
+    Export:
+      Name: Kafka3ENI
+    Value:
+      Ref: Kafka3IPResource
+  Kafka3IPOutput:
+    Condition: Kafka3Condition
+    Description: Kafka 3 IP
+    Export:
+      Name: Kafka3IP
+    Value:
+      Ref: Kafka3IPParam
+  Kafka4AZ:
+    Condition: Kafka4Condition
+    Description: Kafka 4 AZ
+    Export:
+      Name: Kafka4AZ
+    Value:
+      Ref: Kafka4AZ
+  Kafka4EBS:
+    Condition: Kafka4Condition
+    Description: Kafka 4 EBS Volume
+    Export:
+      Name: Kafka4EBS
+    Value:
+      Ref: Kafka4EBSVolume
+  Kafka4ENI:
+    Condition: Kafka4Condition
+    Description: Kafka 4 ENI Ref
+    Export:
+      Name: Kafka4ENI
+    Value:
+      Ref: Kafka4IPResource
+  Kafka4IPOutput:
+    Condition: Kafka4Condition
+    Description: Kafka 4 IP
+    Export:
+      Name: Kafka4IP
+    Value:
+      Ref: Kafka4IPParam
+Parameters:
+  Kafka1AZ:
+    Description: Availability Zone of the Subnet for Kafka 1
+    Type: AWS::EC2::AvailabilityZone::Name
+  Kafka1Create:
+    AllowedValues:
+      - 'True'
+      - 'False'
+    Default: 'True'
+    Description: Create Kafka 1?
+    Type: String
+  Kafka1IPParam:
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})
+    ConstraintDescription: must be a valid IP range of the form x.x.x.x
+    Description: IP Address where Kafka 1 should run
+    Type: String
+  Kafka1SubnetParam:
+    Description: Subnet where Kafka 1 should run
+    Type: AWS::EC2::Subnet::Id
+  Kafka2AZ:
+    Description: Availability Zone of the Subnet for Kafka 2
+    Type: AWS::EC2::AvailabilityZone::Name
+  Kafka2Create:
+    AllowedValues:
+      - 'True'
+      - 'False'
+    Default: 'True'
+    Description: Create Kafka 2?
+    Type: String
+  Kafka2IPParam:
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})
+    ConstraintDescription: must be a valid IP range of the form x.x.x.x
+    Description: IP Address where Kafka 2 should run
+    Type: String
+  Kafka2SubnetParam:
+    Description: Subnet where Kafka 2 should run
+    Type: AWS::EC2::Subnet::Id
+  Kafka3AZ:
+    Description: Availability Zone of the Subnet for Kafka 3
+    Type: AWS::EC2::AvailabilityZone::Name
+  Kafka3Create:
+    AllowedValues:
+      - 'True'
+      - 'False'
+    Default: 'True'
+    Description: Create Kafka 3?
+    Type: String
+  Kafka3IPParam:
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})
+    ConstraintDescription: must be a valid IP range of the form x.x.x.x
+    Description: IP Address where Kafka 3 should run
+    Type: String
+  Kafka3SubnetParam:
+    Description: Subnet where Kafka 3 should run
+    Type: AWS::EC2::Subnet::Id
+  Kafka4AZ:
+    Description: Availability Zone of the Subnet for Kafka 4
+    Type: AWS::EC2::AvailabilityZone::Name
+  Kafka4Create:
+    AllowedValues:
+      - 'True'
+      - 'False'
+    Default: 'False'
+    Description: Create Kafka 4?
+    Type: String
+  Kafka4IPParam:
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})
+    ConstraintDescription: must be a valid IP range of the form x.x.x.x
+    Description: IP Address where Kafka 4 should run
+    Type: String
+  Kafka4SubnetParam:
+    Description: Subnet where Kafka 4 should run
+    Type: AWS::EC2::Subnet::Id
+Resources:
+  Kafka1EBSVolume:
+    Condition: Kafka1Condition
+    Properties:
+      AvailabilityZone:
+        Ref: Kafka1AZ
+      Size: 8
+      VolumeType: gp2
+    Type: AWS::EC2::Volume
+  Kafka1IPResource:
+    Condition: Kafka1Condition
+    Properties:
+      Description: Kafka1-IP
+      GroupSet:
+        - Fn::GetAtt:
+            - KafkaSecurityGroup
+            - GroupId
+      PrivateIpAddress:
+        Ref: Kafka1IPParam
+      SubnetId:
+        Ref: Kafka1SubnetParam
+    Type: AWS::EC2::NetworkInterface
+  Kafka2EBSVolume:
+    Condition: Kafka2Condition
+    Properties:
+      AvailabilityZone:
+        Ref: Kafka2AZ
+      Size: 8
+      VolumeType: gp2
+    Type: AWS::EC2::Volume
+  Kafka2IPResource:
+    Condition: Kafka2Condition
+    Properties:
+      Description: Kafka2-IP
+      GroupSet:
+        - Fn::GetAtt:
+            - KafkaSecurityGroup
+            - GroupId
+      PrivateIpAddress:
+        Ref: Kafka2IPParam
+      SubnetId:
+        Ref: Kafka2SubnetParam
+    Type: AWS::EC2::NetworkInterface
+  Kafka3EBSVolume:
+    Condition: Kafka3Condition
+    Properties:
+      AvailabilityZone:
+        Ref: Kafka3AZ
+      Size: 8
+      VolumeType: gp2
+    Type: AWS::EC2::Volume
+  Kafka3IPResource:
+    Condition: Kafka3Condition
+    Properties:
+      Description: Kafka3-IP
+      GroupSet:
+        - Fn::GetAtt:
+            - KafkaSecurityGroup
+            - GroupId
+      PrivateIpAddress:
+        Ref: Kafka3IPParam
+      SubnetId:
+        Ref: Kafka3SubnetParam
+    Type: AWS::EC2::NetworkInterface
+  Kafka4EBSVolume:
+    Condition: Kafka4Condition
+    Properties:
+      AvailabilityZone:
+        Ref: Kafka4AZ
+      Size: 8
+      VolumeType: gp2
+    Type: AWS::EC2::Volume
+  Kafka4IPResource:
+    Condition: Kafka4Condition
+    Properties:
+      Description: Kafka4-IP
+      GroupSet:
+        - Fn::GetAtt:
+            - KafkaSecurityGroup
+            - GroupId
+      PrivateIpAddress:
+        Ref: Kafka4IPParam
+      SubnetId:
+        Ref: Kafka4SubnetParam
+    Type: AWS::EC2::NetworkInterface
+  KafkaSecurityGroup:
+    Properties:
+      GroupDescription: Kafka Security Group
+    Type: AWS::EC2::SecurityGroup
+  KafkaSecurityGroupPort22:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      Description: SSH Port
+      FromPort: 22
+      GroupId:
+        Fn::GetAtt:
+          - KafkaSecurityGroup
+          - GroupId
+      IpProtocol: tcp
+      ToPort: 22
+    Type: AWS::EC2::SecurityGroupIngress
+  KafkaSecurityGroupPort8080:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      Description: JMX Exporter
+      FromPort: 8080
+      GroupId:
+        Fn::GetAtt:
+          - KafkaSecurityGroup
+          - GroupId
+      IpProtocol: tcp
+      ToPort: 8080
+    Type: AWS::EC2::SecurityGroupIngress
+  KafkaSecurityGroupPort8778:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      Description: Jolokia Port
+      FromPort: 8778
+      GroupId:
+        Fn::GetAtt:
+          - KafkaSecurityGroup
+          - GroupId
+      IpProtocol: tcp
+      ToPort: 8778
+    Type: AWS::EC2::SecurityGroupIngress
+  KafkaSecurityGroupPort9092:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      Description: Kafka External Port
+      FromPort: 9092
+      GroupId:
+        Fn::GetAtt:
+          - KafkaSecurityGroup
+          - GroupId
+      IpProtocol: tcp
+      ToPort: 9092
+    Type: AWS::EC2::SecurityGroupIngress
+  KafkaSecurityGroupPort9999:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      Description: JMX Port
+      FromPort: 9999
+      GroupId:
+        Fn::GetAtt:
+          - KafkaSecurityGroup
+          - GroupId
+      IpProtocol: tcp
+      ToPort: 9999
+    Type: AWS::EC2::SecurityGroupIngress

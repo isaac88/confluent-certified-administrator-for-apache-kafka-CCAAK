@@ -1,0 +1,1063 @@
+Conditions:
+  Kafka1Condition:
+    Fn::Equals:
+      - Ref: Kafka1Create
+      - 'True'
+  Kafka2Condition:
+    Fn::Equals:
+      - Ref: Kafka2Create
+      - 'True'
+  Kafka3Condition:
+    Fn::Equals:
+      - Ref: Kafka3Create
+      - 'True'
+  Kafka4Condition:
+    Fn::Equals:
+      - Ref: Kafka4Create
+      - 'True'
+  SetupMonitoringCondition:
+    Fn::Equals:
+      - Ref: SetupMonitoringParam
+      - 'True'
+Description: Kafka Compute - Kafka Operations and Monitoring Course - (c) Stephane
+  Maarek, DataCumulus.
+Mappings:
+  RegionMap:
+    ap-northeast-1:
+      AMI: ami-e99f4896
+    ap-northeast-2:
+      AMI: ami-afd86dc1
+    ap-northeast-3:
+      AMI: ami-32b8b64f
+    ap-south-1:
+      AMI: ami-d783a9b8
+    ap-southeast-1:
+      AMI: ami-05868579
+    ap-southeast-2:
+      AMI: ami-39f8215b
+    ca-central-1:
+      AMI: ami-0ee86a6a
+    cn-north-1:
+      AMI: ami-ffd00992
+    cn-northwest-1:
+      AMI: ami-965d4af4
+    eu-central-1:
+      AMI: ami-7c4f7097
+    eu-west-1:
+      AMI: ami-466768ac
+    eu-west-2:
+      AMI: ami-b8b45ddf
+    eu-west-3:
+      AMI: ami-2cf54551
+    sa-east-1:
+      AMI: ami-6dca9001
+    us-east-1:
+      AMI: ami-b70554c8
+    us-east-2:
+      AMI: ami-8c122be9
+    us-west-1:
+      AMI: ami-e0ba5c83
+    us-west-2:
+      AMI: ami-a9d09ed1
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Kafka Brokers
+        Parameters:
+          - KeyName
+          - InstanceType
+          - Kafka1Create
+          - Kafka2Create
+          - Kafka3Create
+          - Kafka4Create
+      - Label:
+          default: Advanced
+        Parameters:
+          - SetupMonitoringParam
+          - AdminBoxPublicKey
+Parameters:
+  AdminBoxPublicKey:
+    Default: ''
+    Description: optional public key from admin box (.ssh/id_rsa.pub). Starts with
+      ssh-rsa
+    Type: String
+  InstanceType:
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - m4.large
+      - m4.xlarge
+    ConstraintDescription: must be a valid EC2 instance type.
+    Default: t2.micro
+    Description: Instance Type for your EC2 machine
+    Type: String
+  Kafka1Create:
+    AllowedValues:
+      - 'True'
+      - 'False'
+    Default: 'True'
+    Description: Create Kafka 1?
+    Type: String
+  Kafka2Create:
+    AllowedValues:
+      - 'True'
+      - 'False'
+    Default: 'True'
+    Description: Create Kafka 2?
+    Type: String
+  Kafka3Create:
+    AllowedValues:
+      - 'True'
+      - 'False'
+    Default: 'True'
+    Description: Create Kafka 3?
+    Type: String
+  Kafka4Create:
+    AllowedValues:
+      - 'True'
+      - 'False'
+    Default: 'False'
+    Description: Create Kafka 4?
+    Type: String
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+  SetupMonitoringParam:
+    AllowedValues:
+      - 'True'
+      - 'False'
+    Default: 'False'
+    Description: Setup Agents at boot time?
+    Type: String
+Resources:
+  Kafka1EC2:
+    Condition: Kafka1Condition
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          commands:
+            0_attach_format_ebs:
+              command: /usr/local/bin/attach_format_ebs
+              ignoreErrors: 'false'
+            1_set_swappiness:
+              command: /usr/local/bin/set_swappiness
+              ignoreErrors: 'false'
+            2_download_extract_kafka:
+              command: /usr/local/bin/setup_kafka_bin
+              ignoreErrors: 'false'
+            3_start_kafka_service:
+              command: /usr/local/bin/start_kafka
+              ignoreErrors: 'false'
+            4_tweak_bash_profile:
+              command: /usr/local/bin/add_to_bash_profile
+              ignoreErrors: 'false'
+            5_setup_admin_box_ssh:
+              command: /usr/local/bin/allow_ssh_from_admin
+              ignoreErrors: 'false'
+            6_setup_monitoring:
+              command:
+                Fn::If:
+                  - SetupMonitoringCondition
+                  - /usr/local/bin/setup_monitoring
+                  - echo "no monitoring setup"
+              ignoreErrors: 'false'
+          files:
+            /etc/systemd/system/kafka.service:
+              content: |
+                [Unit]
+                Description=Kafka
+                After=network.target
+
+                [Service]
+                User=ec2-user
+                Group=ec2-user
+                Environment="KAFKA_HEAP_OPTS=-Xmx256M -Xms128M"
+                ExecStart=/home/ec2-user/kafka/bin/kafka-server-start.sh /home/ec2-user/kafka.properties
+                SuccessExitStatus=143
+
+                [Install]
+                WantedBy=multi-user.target
+              group: root
+              mode: '000755'
+              owner: root
+            /home/ec2-user/kafka.properties:
+              content:
+                Fn::Sub:
+                  - |
+                    ############################# Server Basics #############################
+                    broker.id=1
+                    advertised.listeners=PLAINTEXT://${broker_ip}:9092
+                    delete.topic.enable=true
+                    log.dirs=/data/kafka
+                    num.partitions=8
+                    default.replication.factor=3
+                    log.retention.hours=168
+
+                    zookeeper.connect=${zookeeper_ip}:2181
+                    zookeeper.connection.timeout.ms=6000
+
+                    auto.create.topics.enable=false
+                    offsets.topic.replication.factor=3
+                  - broker_ip:
+                      Fn::ImportValue: Kafka1IP
+                    zookeeper_ip:
+                      Fn::ImportValue: Zookeeper1IP
+              group: ec2-user
+              mode: '000644'
+              owner: ec2-user
+            /usr/local/bin/add_to_bash_profile:
+              content: |
+                #!/bin/bash -xe
+                cat << "EOF" >> /home/ec2-user/.bash_profile
+                DAEMON_PATH=/home/ec2-user/kafka/bin
+                export PATH=$PATH:$DAEMON_PATH
+                export KAFKA_HEAP_OPTS="-Xmx256M -Xms128M"
+                EOF
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/allow_ssh_from_admin:
+              content:
+                Fn::Sub:
+                  - |-
+                    #!/bin/bash -xe
+                    KEY="${admin_box_public_key}"
+                    [[ -z "$KEY" ]] && { echo "Admin SSH Key is empty" ; exit 0; }
+                    [[ ! "$KEY" =~ ^ssh-rsa.* ]] && { echo "Admin SSH Key does not start with ssh-rsa" ; exit 0; }
+
+                    NEW_KEY="$KEY admin-box"
+                    if ! grep -q admin-box "/home/ec2-user/.ssh/authorized_keys"; then
+                      echo $NEW_KEY >> /home/ec2-user/.ssh/authorized_keys
+                    else
+                      sed -i "s|.*admin-box$|$NEW_KEY|g" /home/ec2-user/.ssh/authorized_keys
+                    fi;
+                  - admin_box_public_key:
+                      Ref: AdminBoxPublicKey
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/attach_format_ebs:
+              content: |
+                #!/bin/bash -xe
+
+                #
+                # See: http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-using-volumes.html
+                #
+                # Make sure both volumes have been created AND attached to this instance !
+
+                ######################################################################
+
+                while [ ! -e /dev/xvdf ] ; do echo "Waiting for attachment"; sleep 1 ; done
+
+                # Format /dev/xvdf if it does not contain a partition yet
+                if [ "$(file -b -s /dev/xvdf)" == "data" ]; then
+                  mkfs.xfs -f /dev/xvdf
+                fi
+
+                mkdir -p /data/kafka
+                mount -t xfs /dev/xvdf /data/kafka
+                chown -R ec2-user:ec2-user /data/kafka
+
+                # Persist the volume in /etc/fstab so it gets mounted again
+                echo '/dev/xvdf /data/kafka xfs defaults 0 0' >> /etc/fstab
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/set_swappiness:
+              content: |
+                #!/bin/bash -xe
+                sysctl vm.swappiness=1
+                echo 'vm.swappiness=1' | sudo tee --append /etc/sysctl.conf
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/setup_kafka_bin:
+              content: |
+                #!/bin/bash -xe
+                wget -P /home/ec2-user https://archive.apache.org/dist/kafka/1.1.1/kafka_2.12-1.1.1.tgz
+                tar xf /home/ec2-user/kafka_2.12-1.1.1.tgz -C /home/ec2-user
+                ln -s /home/ec2-user/kafka_2.12-1.1.1 /home/ec2-user/kafka
+                chown -R ec2-user:ec2-user /home/ec2-user/kafka /home/ec2-user/kafka_2.12-1.1.1
+                rm /home/ec2-user/kafka_2.12-1.1.1.tgz
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/setup_monitoring:
+              content: |
+                #!/bin/bash -xe
+                sudo systemctl stop kafka
+
+                mkdir -p /home/ec2-user/prometheus
+                wget -N -P /home/ec2-user/prometheus https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.3.1/jmx_prometheus_javaagent-0.3.1.jar
+                wget -N -P /home/ec2-user/prometheus https://raw.githubusercontent.com/prometheus/jmx_exporter/master/example_configs/kafka-0-8-2.yml
+
+                mkdir -p /home/ec2-user/jolokia
+                wget -N http://search.maven.org/remotecontent?filepath=org/jolokia/jolokia-jvm/1.6.0/jolokia-jvm-1.6.0-agent.jar -O /home/ec2-user/jolokia/jolokia-agent.jar
+
+                if ! grep -q KAFKA_OPTS "/etc/systemd/system/kafka.service"; then
+                  sudo sed -i '/Environment="KAFKA_HEAP_OPTS/a Environment="KAFKA_OPTS=-javaagent:/home/ec2-user/prometheus/jmx_prometheus_javaagent-0.3.1.jar=8080:/home/ec2-user/prometheus/kafka-0-8-2.yml -javaagent:/home/ec2-user/jolokia/jolokia-agent.jar=host=*"' /etc/systemd/system/kafka.service
+                else
+                  sudo sed -i 's|Environment="KAFKA_OPTS.*|Environment="KAFKA_OPTS=-javaagent:/home/ec2-user/prometheus/jmx_prometheus_javaagent-0.3.1.jar=8080:/home/ec2-user/prometheus/kafka-0-8-2.yml -javaagent:/home/ec2-user/jolokia/jolokia-agent.jar=host=*"|g' /etc/systemd/system/kafka.service
+                fi;
+
+                sudo systemctl daemon-reload
+                sudo systemctl start kafka
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/start_kafka:
+              content: |
+                #!/bin/bash -xe
+                systemctl enable kafka.service
+                systemctl start kafka.service
+              group: root
+              mode: '000755'
+              owner: root
+          packages:
+            yum:
+              ca-certificates: {}
+              java-1.8.0-openjdk: {}
+              net-tools: {}
+              tar: {}
+              wget: {}
+              xfsprogs: {}
+              zip: {}
+    Properties:
+      ImageId:
+        Fn::FindInMap:
+          - RegionMap
+          - Ref: AWS::Region
+          - AMI
+      InstanceType:
+        Ref: InstanceType
+      KeyName:
+        Ref: KeyName
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          NetworkInterfaceId:
+            Fn::ImportValue: Kafka1ENI
+      Tags:
+        - Key: Name
+          Value: Kafka 1
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash -xe
+            yum update -y aws-cfn-bootstrap
+            /opt/aws/bin/cfn-init -s ${AWS::StackId} -r Kafka1EC2 --region ${AWS::Region}
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource Kafka1EC2Wait --region ${AWS::Region}
+    Type: AWS::EC2::Instance
+  Kafka1EC2Wait:
+    Condition: Kafka1Condition
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT5M
+    Type: AWS::CloudFormation::WaitCondition
+  Kafka1VolumeAttachment:
+    Condition: Kafka1Condition
+    Properties:
+      Device: /dev/sdf
+      InstanceId:
+        Ref: Kafka1EC2
+      VolumeId:
+        Fn::ImportValue: Kafka1EBS
+    Type: AWS::EC2::VolumeAttachment
+  Kafka2EC2:
+    Condition: Kafka2Condition
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          commands:
+            0_attach_format_ebs:
+              command: /usr/local/bin/attach_format_ebs
+              ignoreErrors: 'false'
+            1_set_swappiness:
+              command: /usr/local/bin/set_swappiness
+              ignoreErrors: 'false'
+            2_download_extract_kafka:
+              command: /usr/local/bin/setup_kafka_bin
+              ignoreErrors: 'false'
+            3_start_kafka_service:
+              command: /usr/local/bin/start_kafka
+              ignoreErrors: 'false'
+            4_tweak_bash_profile:
+              command: /usr/local/bin/add_to_bash_profile
+              ignoreErrors: 'false'
+            5_setup_admin_box_ssh:
+              command: /usr/local/bin/allow_ssh_from_admin
+              ignoreErrors: 'false'
+            6_setup_monitoring:
+              command:
+                Fn::If:
+                  - SetupMonitoringCondition
+                  - /usr/local/bin/setup_monitoring
+                  - echo "no monitoring setup"
+              ignoreErrors: 'false'
+          files:
+            /etc/systemd/system/kafka.service:
+              content: |
+                [Unit]
+                Description=Kafka
+                After=network.target
+
+                [Service]
+                User=ec2-user
+                Group=ec2-user
+                Environment="KAFKA_HEAP_OPTS=-Xmx256M -Xms128M"
+                ExecStart=/home/ec2-user/kafka/bin/kafka-server-start.sh /home/ec2-user/kafka.properties
+                SuccessExitStatus=143
+
+                [Install]
+                WantedBy=multi-user.target
+              group: root
+              mode: '000755'
+              owner: root
+            /home/ec2-user/kafka.properties:
+              content:
+                Fn::Sub:
+                  - |
+                    ############################# Server Basics #############################
+                    broker.id=2
+                    advertised.listeners=PLAINTEXT://${broker_ip}:9092
+                    delete.topic.enable=true
+                    log.dirs=/data/kafka
+                    num.partitions=8
+                    default.replication.factor=3
+                    log.retention.hours=168
+
+                    zookeeper.connect=${zookeeper_ip}:2181
+                    zookeeper.connection.timeout.ms=6000
+
+                    auto.create.topics.enable=false
+                    offsets.topic.replication.factor=3
+                  - broker_ip:
+                      Fn::ImportValue: Kafka2IP
+                    zookeeper_ip:
+                      Fn::ImportValue: Zookeeper1IP
+              group: ec2-user
+              mode: '000644'
+              owner: ec2-user
+            /usr/local/bin/add_to_bash_profile:
+              content: |
+                #!/bin/bash -xe
+                cat << "EOF" >> /home/ec2-user/.bash_profile
+                DAEMON_PATH=/home/ec2-user/kafka/bin
+                export PATH=$PATH:$DAEMON_PATH
+                export KAFKA_HEAP_OPTS="-Xmx256M -Xms128M"
+                EOF
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/allow_ssh_from_admin:
+              content:
+                Fn::Sub:
+                  - |-
+                    #!/bin/bash -xe
+                    KEY="${admin_box_public_key}"
+                    [[ -z "$KEY" ]] && { echo "Admin SSH Key is empty" ; exit 0; }
+                    [[ ! "$KEY" =~ ^ssh-rsa.* ]] && { echo "Admin SSH Key does not start with ssh-rsa" ; exit 0; }
+
+                    NEW_KEY="$KEY admin-box"
+                    if ! grep -q admin-box "/home/ec2-user/.ssh/authorized_keys"; then
+                      echo $NEW_KEY >> /home/ec2-user/.ssh/authorized_keys
+                    else
+                      sed -i "s|.*admin-box$|$NEW_KEY|g" /home/ec2-user/.ssh/authorized_keys
+                    fi;
+                  - admin_box_public_key:
+                      Ref: AdminBoxPublicKey
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/attach_format_ebs:
+              content: |
+                #!/bin/bash -xe
+
+                #
+                # See: http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-using-volumes.html
+                #
+                # Make sure both volumes have been created AND attached to this instance !
+
+                ######################################################################
+
+                while [ ! -e /dev/xvdf ] ; do echo "Waiting for attachment"; sleep 1 ; done
+
+                # Format /dev/xvdf if it does not contain a partition yet
+                if [ "$(file -b -s /dev/xvdf)" == "data" ]; then
+                  mkfs.xfs -f /dev/xvdf
+                fi
+
+                mkdir -p /data/kafka
+                mount -t xfs /dev/xvdf /data/kafka
+                chown -R ec2-user:ec2-user /data/kafka
+
+                # Persist the volume in /etc/fstab so it gets mounted again
+                echo '/dev/xvdf /data/kafka xfs defaults 0 0' >> /etc/fstab
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/set_swappiness:
+              content: |
+                #!/bin/bash -xe
+                sysctl vm.swappiness=1
+                echo 'vm.swappiness=1' | sudo tee --append /etc/sysctl.conf
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/setup_kafka_bin:
+              content: |
+                #!/bin/bash -xe
+                wget -P /home/ec2-user https://archive.apache.org/dist/kafka/1.1.1/kafka_2.12-1.1.1.tgz
+                tar xf /home/ec2-user/kafka_2.12-1.1.1.tgz -C /home/ec2-user
+                ln -s /home/ec2-user/kafka_2.12-1.1.1 /home/ec2-user/kafka
+                chown -R ec2-user:ec2-user /home/ec2-user/kafka /home/ec2-user/kafka_2.12-1.1.1
+                rm /home/ec2-user/kafka_2.12-1.1.1.tgz
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/setup_monitoring:
+              content: |
+                #!/bin/bash -xe
+                sudo systemctl stop kafka
+
+                mkdir -p /home/ec2-user/prometheus
+                wget -N -P /home/ec2-user/prometheus https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.3.1/jmx_prometheus_javaagent-0.3.1.jar
+                wget -N -P /home/ec2-user/prometheus https://raw.githubusercontent.com/prometheus/jmx_exporter/master/example_configs/kafka-0-8-2.yml
+
+                mkdir -p /home/ec2-user/jolokia
+                wget -N http://search.maven.org/remotecontent?filepath=org/jolokia/jolokia-jvm/1.6.0/jolokia-jvm-1.6.0-agent.jar -O /home/ec2-user/jolokia/jolokia-agent.jar
+
+                if ! grep -q KAFKA_OPTS "/etc/systemd/system/kafka.service"; then
+                  sudo sed -i '/Environment="KAFKA_HEAP_OPTS/a Environment="KAFKA_OPTS=-javaagent:/home/ec2-user/prometheus/jmx_prometheus_javaagent-0.3.1.jar=8080:/home/ec2-user/prometheus/kafka-0-8-2.yml -javaagent:/home/ec2-user/jolokia/jolokia-agent.jar=host=*"' /etc/systemd/system/kafka.service
+                else
+                  sudo sed -i 's|Environment="KAFKA_OPTS.*|Environment="KAFKA_OPTS=-javaagent:/home/ec2-user/prometheus/jmx_prometheus_javaagent-0.3.1.jar=8080:/home/ec2-user/prometheus/kafka-0-8-2.yml -javaagent:/home/ec2-user/jolokia/jolokia-agent.jar=host=*"|g' /etc/systemd/system/kafka.service
+                fi;
+
+                sudo systemctl daemon-reload
+                sudo systemctl start kafka
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/start_kafka:
+              content: |
+                #!/bin/bash -xe
+                systemctl enable kafka.service
+                systemctl start kafka.service
+              group: root
+              mode: '000755'
+              owner: root
+          packages:
+            yum:
+              ca-certificates: {}
+              java-1.8.0-openjdk: {}
+              net-tools: {}
+              tar: {}
+              wget: {}
+              xfsprogs: {}
+              zip: {}
+    Properties:
+      ImageId:
+        Fn::FindInMap:
+          - RegionMap
+          - Ref: AWS::Region
+          - AMI
+      InstanceType:
+        Ref: InstanceType
+      KeyName:
+        Ref: KeyName
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          NetworkInterfaceId:
+            Fn::ImportValue: Kafka2ENI
+      Tags:
+        - Key: Name
+          Value: Kafka 2
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash -xe
+            yum update -y aws-cfn-bootstrap
+            /opt/aws/bin/cfn-init -s ${AWS::StackId} -r Kafka2EC2 --region ${AWS::Region}
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource Kafka2EC2Wait --region ${AWS::Region}
+    Type: AWS::EC2::Instance
+  Kafka2EC2Wait:
+    Condition: Kafka2Condition
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT5M
+    Type: AWS::CloudFormation::WaitCondition
+  Kafka2VolumeAttachment:
+    Condition: Kafka2Condition
+    Properties:
+      Device: /dev/sdf
+      InstanceId:
+        Ref: Kafka2EC2
+      VolumeId:
+        Fn::ImportValue: Kafka2EBS
+    Type: AWS::EC2::VolumeAttachment
+  Kafka3EC2:
+    Condition: Kafka3Condition
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          commands:
+            0_attach_format_ebs:
+              command: /usr/local/bin/attach_format_ebs
+              ignoreErrors: 'false'
+            1_set_swappiness:
+              command: /usr/local/bin/set_swappiness
+              ignoreErrors: 'false'
+            2_download_extract_kafka:
+              command: /usr/local/bin/setup_kafka_bin
+              ignoreErrors: 'false'
+            3_start_kafka_service:
+              command: /usr/local/bin/start_kafka
+              ignoreErrors: 'false'
+            4_tweak_bash_profile:
+              command: /usr/local/bin/add_to_bash_profile
+              ignoreErrors: 'false'
+            5_setup_admin_box_ssh:
+              command: /usr/local/bin/allow_ssh_from_admin
+              ignoreErrors: 'false'
+            6_setup_monitoring:
+              command:
+                Fn::If:
+                  - SetupMonitoringCondition
+                  - /usr/local/bin/setup_monitoring
+                  - echo "no monitoring setup"
+              ignoreErrors: 'false'
+          files:
+            /etc/systemd/system/kafka.service:
+              content: |
+                [Unit]
+                Description=Kafka
+                After=network.target
+
+                [Service]
+                User=ec2-user
+                Group=ec2-user
+                Environment="KAFKA_HEAP_OPTS=-Xmx256M -Xms128M"
+                ExecStart=/home/ec2-user/kafka/bin/kafka-server-start.sh /home/ec2-user/kafka.properties
+                SuccessExitStatus=143
+
+                [Install]
+                WantedBy=multi-user.target
+              group: root
+              mode: '000755'
+              owner: root
+            /home/ec2-user/kafka.properties:
+              content:
+                Fn::Sub:
+                  - |
+                    ############################# Server Basics #############################
+                    broker.id=3
+                    advertised.listeners=PLAINTEXT://${broker_ip}:9092
+                    delete.topic.enable=true
+                    log.dirs=/data/kafka
+                    num.partitions=8
+                    default.replication.factor=3
+                    log.retention.hours=168
+
+                    zookeeper.connect=${zookeeper_ip}:2181
+                    zookeeper.connection.timeout.ms=6000
+
+                    auto.create.topics.enable=false
+                    offsets.topic.replication.factor=3
+                  - broker_ip:
+                      Fn::ImportValue: Kafka3IP
+                    zookeeper_ip:
+                      Fn::ImportValue: Zookeeper1IP
+              group: ec2-user
+              mode: '000644'
+              owner: ec2-user
+            /usr/local/bin/add_to_bash_profile:
+              content: |
+                #!/bin/bash -xe
+                cat << "EOF" >> /home/ec2-user/.bash_profile
+                DAEMON_PATH=/home/ec2-user/kafka/bin
+                export PATH=$PATH:$DAEMON_PATH
+                export KAFKA_HEAP_OPTS="-Xmx256M -Xms128M"
+                EOF
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/allow_ssh_from_admin:
+              content:
+                Fn::Sub:
+                  - |-
+                    #!/bin/bash -xe
+                    KEY="${admin_box_public_key}"
+                    [[ -z "$KEY" ]] && { echo "Admin SSH Key is empty" ; exit 0; }
+                    [[ ! "$KEY" =~ ^ssh-rsa.* ]] && { echo "Admin SSH Key does not start with ssh-rsa" ; exit 0; }
+
+                    NEW_KEY="$KEY admin-box"
+                    if ! grep -q admin-box "/home/ec2-user/.ssh/authorized_keys"; then
+                      echo $NEW_KEY >> /home/ec2-user/.ssh/authorized_keys
+                    else
+                      sed -i "s|.*admin-box$|$NEW_KEY|g" /home/ec2-user/.ssh/authorized_keys
+                    fi;
+                  - admin_box_public_key:
+                      Ref: AdminBoxPublicKey
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/attach_format_ebs:
+              content: |
+                #!/bin/bash -xe
+
+                #
+                # See: http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-using-volumes.html
+                #
+                # Make sure both volumes have been created AND attached to this instance !
+
+                ######################################################################
+
+                while [ ! -e /dev/xvdf ] ; do echo "Waiting for attachment"; sleep 1 ; done
+
+                # Format /dev/xvdf if it does not contain a partition yet
+                if [ "$(file -b -s /dev/xvdf)" == "data" ]; then
+                  mkfs.xfs -f /dev/xvdf
+                fi
+
+                mkdir -p /data/kafka
+                mount -t xfs /dev/xvdf /data/kafka
+                chown -R ec2-user:ec2-user /data/kafka
+
+                # Persist the volume in /etc/fstab so it gets mounted again
+                echo '/dev/xvdf /data/kafka xfs defaults 0 0' >> /etc/fstab
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/set_swappiness:
+              content: |
+                #!/bin/bash -xe
+                sysctl vm.swappiness=1
+                echo 'vm.swappiness=1' | sudo tee --append /etc/sysctl.conf
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/setup_kafka_bin:
+              content: |
+                #!/bin/bash -xe
+                wget -P /home/ec2-user https://archive.apache.org/dist/kafka/1.1.1/kafka_2.12-1.1.1.tgz
+                tar xf /home/ec2-user/kafka_2.12-1.1.1.tgz -C /home/ec2-user
+                ln -s /home/ec2-user/kafka_2.12-1.1.1 /home/ec2-user/kafka
+                chown -R ec2-user:ec2-user /home/ec2-user/kafka /home/ec2-user/kafka_2.12-1.1.1
+                rm /home/ec2-user/kafka_2.12-1.1.1.tgz
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/setup_monitoring:
+              content: |
+                #!/bin/bash -xe
+                sudo systemctl stop kafka
+
+                mkdir -p /home/ec2-user/prometheus
+                wget -N -P /home/ec2-user/prometheus https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.3.1/jmx_prometheus_javaagent-0.3.1.jar
+                wget -N -P /home/ec2-user/prometheus https://raw.githubusercontent.com/prometheus/jmx_exporter/master/example_configs/kafka-0-8-2.yml
+
+                mkdir -p /home/ec2-user/jolokia
+                wget -N http://search.maven.org/remotecontent?filepath=org/jolokia/jolokia-jvm/1.6.0/jolokia-jvm-1.6.0-agent.jar -O /home/ec2-user/jolokia/jolokia-agent.jar
+
+                if ! grep -q KAFKA_OPTS "/etc/systemd/system/kafka.service"; then
+                  sudo sed -i '/Environment="KAFKA_HEAP_OPTS/a Environment="KAFKA_OPTS=-javaagent:/home/ec2-user/prometheus/jmx_prometheus_javaagent-0.3.1.jar=8080:/home/ec2-user/prometheus/kafka-0-8-2.yml -javaagent:/home/ec2-user/jolokia/jolokia-agent.jar=host=*"' /etc/systemd/system/kafka.service
+                else
+                  sudo sed -i 's|Environment="KAFKA_OPTS.*|Environment="KAFKA_OPTS=-javaagent:/home/ec2-user/prometheus/jmx_prometheus_javaagent-0.3.1.jar=8080:/home/ec2-user/prometheus/kafka-0-8-2.yml -javaagent:/home/ec2-user/jolokia/jolokia-agent.jar=host=*"|g' /etc/systemd/system/kafka.service
+                fi;
+
+                sudo systemctl daemon-reload
+                sudo systemctl start kafka
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/start_kafka:
+              content: |
+                #!/bin/bash -xe
+                systemctl enable kafka.service
+                systemctl start kafka.service
+              group: root
+              mode: '000755'
+              owner: root
+          packages:
+            yum:
+              ca-certificates: {}
+              java-1.8.0-openjdk: {}
+              net-tools: {}
+              tar: {}
+              wget: {}
+              xfsprogs: {}
+              zip: {}
+    Properties:
+      ImageId:
+        Fn::FindInMap:
+          - RegionMap
+          - Ref: AWS::Region
+          - AMI
+      InstanceType:
+        Ref: InstanceType
+      KeyName:
+        Ref: KeyName
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          NetworkInterfaceId:
+            Fn::ImportValue: Kafka3ENI
+      Tags:
+        - Key: Name
+          Value: Kafka 3
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash -xe
+            yum update -y aws-cfn-bootstrap
+            /opt/aws/bin/cfn-init -s ${AWS::StackId} -r Kafka3EC2 --region ${AWS::Region}
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource Kafka3EC2Wait --region ${AWS::Region}
+    Type: AWS::EC2::Instance
+  Kafka3EC2Wait:
+    Condition: Kafka3Condition
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT5M
+    Type: AWS::CloudFormation::WaitCondition
+  Kafka3VolumeAttachment:
+    Condition: Kafka3Condition
+    Properties:
+      Device: /dev/sdf
+      InstanceId:
+        Ref: Kafka3EC2
+      VolumeId:
+        Fn::ImportValue: Kafka3EBS
+    Type: AWS::EC2::VolumeAttachment
+  Kafka4EC2:
+    Condition: Kafka4Condition
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          commands:
+            0_attach_format_ebs:
+              command: /usr/local/bin/attach_format_ebs
+              ignoreErrors: 'false'
+            1_set_swappiness:
+              command: /usr/local/bin/set_swappiness
+              ignoreErrors: 'false'
+            2_download_extract_kafka:
+              command: /usr/local/bin/setup_kafka_bin
+              ignoreErrors: 'false'
+            3_start_kafka_service:
+              command: /usr/local/bin/start_kafka
+              ignoreErrors: 'false'
+            4_tweak_bash_profile:
+              command: /usr/local/bin/add_to_bash_profile
+              ignoreErrors: 'false'
+            5_setup_admin_box_ssh:
+              command: /usr/local/bin/allow_ssh_from_admin
+              ignoreErrors: 'false'
+            6_setup_monitoring:
+              command:
+                Fn::If:
+                  - SetupMonitoringCondition
+                  - /usr/local/bin/setup_monitoring
+                  - echo "no monitoring setup"
+              ignoreErrors: 'false'
+          files:
+            /etc/systemd/system/kafka.service:
+              content: |
+                [Unit]
+                Description=Kafka
+                After=network.target
+
+                [Service]
+                User=ec2-user
+                Group=ec2-user
+                Environment="KAFKA_HEAP_OPTS=-Xmx256M -Xms128M"
+                ExecStart=/home/ec2-user/kafka/bin/kafka-server-start.sh /home/ec2-user/kafka.properties
+                SuccessExitStatus=143
+
+                [Install]
+                WantedBy=multi-user.target
+              group: root
+              mode: '000755'
+              owner: root
+            /home/ec2-user/kafka.properties:
+              content:
+                Fn::Sub:
+                  - |
+                    ############################# Server Basics #############################
+                    broker.id=4
+                    advertised.listeners=PLAINTEXT://${broker_ip}:9092
+                    delete.topic.enable=true
+                    log.dirs=/data/kafka
+                    num.partitions=8
+                    default.replication.factor=3
+                    log.retention.hours=168
+
+                    zookeeper.connect=${zookeeper_ip}:2181
+                    zookeeper.connection.timeout.ms=6000
+
+                    auto.create.topics.enable=false
+                    offsets.topic.replication.factor=3
+                  - broker_ip:
+                      Fn::ImportValue: Kafka4IP
+                    zookeeper_ip:
+                      Fn::ImportValue: Zookeeper1IP
+              group: ec2-user
+              mode: '000644'
+              owner: ec2-user
+            /usr/local/bin/add_to_bash_profile:
+              content: |
+                #!/bin/bash -xe
+                cat << "EOF" >> /home/ec2-user/.bash_profile
+                DAEMON_PATH=/home/ec2-user/kafka/bin
+                export PATH=$PATH:$DAEMON_PATH
+                export KAFKA_HEAP_OPTS="-Xmx256M -Xms128M"
+                EOF
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/allow_ssh_from_admin:
+              content:
+                Fn::Sub:
+                  - |-
+                    #!/bin/bash -xe
+                    KEY="${admin_box_public_key}"
+                    [[ -z "$KEY" ]] && { echo "Admin SSH Key is empty" ; exit 0; }
+                    [[ ! "$KEY" =~ ^ssh-rsa.* ]] && { echo "Admin SSH Key does not start with ssh-rsa" ; exit 0; }
+
+                    NEW_KEY="$KEY admin-box"
+                    if ! grep -q admin-box "/home/ec2-user/.ssh/authorized_keys"; then
+                      echo $NEW_KEY >> /home/ec2-user/.ssh/authorized_keys
+                    else
+                      sed -i "s|.*admin-box$|$NEW_KEY|g" /home/ec2-user/.ssh/authorized_keys
+                    fi;
+                  - admin_box_public_key:
+                      Ref: AdminBoxPublicKey
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/attach_format_ebs:
+              content: |
+                #!/bin/bash -xe
+
+                #
+                # See: http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-using-volumes.html
+                #
+                # Make sure both volumes have been created AND attached to this instance !
+
+                ######################################################################
+
+                while [ ! -e /dev/xvdf ] ; do echo "Waiting for attachment"; sleep 1 ; done
+
+                # Format /dev/xvdf if it does not contain a partition yet
+                if [ "$(file -b -s /dev/xvdf)" == "data" ]; then
+                  mkfs.xfs -f /dev/xvdf
+                fi
+
+                mkdir -p /data/kafka
+                mount -t xfs /dev/xvdf /data/kafka
+                chown -R ec2-user:ec2-user /data/kafka
+
+                # Persist the volume in /etc/fstab so it gets mounted again
+                echo '/dev/xvdf /data/kafka xfs defaults 0 0' >> /etc/fstab
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/set_swappiness:
+              content: |
+                #!/bin/bash -xe
+                sysctl vm.swappiness=1
+                echo 'vm.swappiness=1' | sudo tee --append /etc/sysctl.conf
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/setup_kafka_bin:
+              content: |
+                #!/bin/bash -xe
+                wget -P /home/ec2-user https://archive.apache.org/dist/kafka/1.1.1/kafka_2.12-1.1.1.tgz
+                tar xf /home/ec2-user/kafka_2.12-1.1.1.tgz -C /home/ec2-user
+                ln -s /home/ec2-user/kafka_2.12-1.1.1 /home/ec2-user/kafka
+                chown -R ec2-user:ec2-user /home/ec2-user/kafka /home/ec2-user/kafka_2.12-1.1.1
+                rm /home/ec2-user/kafka_2.12-1.1.1.tgz
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/setup_monitoring:
+              content: |
+                #!/bin/bash -xe
+                sudo systemctl stop kafka
+
+                mkdir -p /home/ec2-user/prometheus
+                wget -N -P /home/ec2-user/prometheus https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.3.1/jmx_prometheus_javaagent-0.3.1.jar
+                wget -N -P /home/ec2-user/prometheus https://raw.githubusercontent.com/prometheus/jmx_exporter/master/example_configs/kafka-0-8-2.yml
+
+                mkdir -p /home/ec2-user/jolokia
+                wget -N http://search.maven.org/remotecontent?filepath=org/jolokia/jolokia-jvm/1.6.0/jolokia-jvm-1.6.0-agent.jar -O /home/ec2-user/jolokia/jolokia-agent.jar
+
+                if ! grep -q KAFKA_OPTS "/etc/systemd/system/kafka.service"; then
+                  sudo sed -i '/Environment="KAFKA_HEAP_OPTS/a Environment="KAFKA_OPTS=-javaagent:/home/ec2-user/prometheus/jmx_prometheus_javaagent-0.3.1.jar=8080:/home/ec2-user/prometheus/kafka-0-8-2.yml -javaagent:/home/ec2-user/jolokia/jolokia-agent.jar=host=*"' /etc/systemd/system/kafka.service
+                else
+                  sudo sed -i 's|Environment="KAFKA_OPTS.*|Environment="KAFKA_OPTS=-javaagent:/home/ec2-user/prometheus/jmx_prometheus_javaagent-0.3.1.jar=8080:/home/ec2-user/prometheus/kafka-0-8-2.yml -javaagent:/home/ec2-user/jolokia/jolokia-agent.jar=host=*"|g' /etc/systemd/system/kafka.service
+                fi;
+
+                sudo systemctl daemon-reload
+                sudo systemctl start kafka
+              group: root
+              mode: '000755'
+              owner: root
+            /usr/local/bin/start_kafka:
+              content: |
+                #!/bin/bash -xe
+                systemctl enable kafka.service
+                systemctl start kafka.service
+              group: root
+              mode: '000755'
+              owner: root
+          packages:
+            yum:
+              ca-certificates: {}
+              java-1.8.0-openjdk: {}
+              net-tools: {}
+              tar: {}
+              wget: {}
+              xfsprogs: {}
+              zip: {}
+    Properties:
+      ImageId:
+        Fn::FindInMap:
+          - RegionMap
+          - Ref: AWS::Region
+          - AMI
+      InstanceType:
+        Ref: InstanceType
+      KeyName:
+        Ref: KeyName
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          NetworkInterfaceId:
+            Fn::ImportValue: Kafka4ENI
+      Tags:
+        - Key: Name
+          Value: Kafka 4
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash -xe
+            yum update -y aws-cfn-bootstrap
+            /opt/aws/bin/cfn-init -s ${AWS::StackId} -r Kafka4EC2 --region ${AWS::Region}
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource Kafka4EC2Wait --region ${AWS::Region}
+    Type: AWS::EC2::Instance
+  Kafka4EC2Wait:
+    Condition: Kafka4Condition
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT5M
+    Type: AWS::CloudFormation::WaitCondition
+  Kafka4VolumeAttachment:
+    Condition: Kafka4Condition
+    Properties:
+      Device: /dev/sdf
+      InstanceId:
+        Ref: Kafka4EC2
+      VolumeId:
+        Fn::ImportValue: Kafka4EBS
+    Type: AWS::EC2::VolumeAttachment

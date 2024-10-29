@@ -1,0 +1,12 @@
+global:
+ scrape_interval: 10s
+ evaluation_interval: 10s
+scrape_configs:
+ - job_name: 'kafka'
+   static_configs:
+    - targets:
+      - 172.31.1.31:8080   # Kafka 1 - change IP for your use case
+#  - job_name: 'zookeeper'
+#    static_configs:
+#     - targets:
+#       - .....:8080

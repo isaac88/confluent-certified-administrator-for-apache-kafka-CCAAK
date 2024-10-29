@@ -1,0 +1,11 @@
+# /etc/docker/compose/kafka-manager/docker-compose.yml
+version: '3.6'
+services:
+  kafka_manager:
+    image: hlebalbau/kafka-manager:1.3.3.18
+    ports:
+      - "9000:9000"
+    environment:
+      ZK_HOSTS: "172.31.9.21:2181"
+      APPLICATION_SECRET: "random-secret"
+    command: -Dpidfile.path=/dev/null

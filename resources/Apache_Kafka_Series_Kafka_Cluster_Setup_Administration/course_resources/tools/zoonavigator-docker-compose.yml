@@ -1,0 +1,11 @@
+version: '2'
+
+services:
+  # https://github.com/elkozmon/zoonavigator
+  zoonavigator:
+    image: elkozmon/zoonavigator:latest
+    container_name: zoonavigator
+    network_mode: host
+    environment:
+      HTTP_PORT: 8001
+    restart: always
